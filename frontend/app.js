@@ -73,7 +73,7 @@ function renderBoard() {
       const squareData = map.get(squareId);
       if (squareData?.piece) {
         const pieceEl = document.createElement("span");
-        pieceEl.className = "piece";
+        pieceEl.className = `piece piece-${squareData.color ?? "unknown"}`;
         pieceEl.textContent = formatPieceSymbol(squareData);
         squareButton.appendChild(pieceEl);
       }
