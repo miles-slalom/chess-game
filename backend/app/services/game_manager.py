@@ -1,13 +1,19 @@
 """Service layer for coordinating chess games and AI moves."""
+
 from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
 
 from ..chess.ai import GreedyMoveAI
 from ..chess.board import BoardState, ChessBoard, GameStatus
-from ..chess.models import Move, PieceColor, PieceType, algebraic_to_index, index_to_algebraic
+from ..chess.models import (
+    BoardIndex,
+    Move,
+    PieceColor,
+    PieceType,
+    algebraic_to_index,
+)
 from ..chess.move_validator import MoveGenerator
 
 
@@ -30,7 +36,7 @@ class GameManager:
     """Manage active games and delegate AI responses."""
 
     def __init__(self) -> None:
-        self._games: Dict[str, Game] = {}
+        self._games: dict[str, Game] = {}
         self._ai = GreedyMoveAI()
 
     def create_game(self, player_color: PieceColor = PieceColor.WHITE) -> Game:
@@ -56,8 +62,8 @@ class GameManager:
         return game
 
     def make_player_move(
-        self, identifier: str, from_square: str, to_square: str, promotion: Optional[str] = None
-    ) -> Tuple[Move, Optional[Move]]:
+        self, identifier: str, from_square: str, to_square: str, promotion: str | None = None
+    ) -> tuple[Move, Move | None]:
         """Apply a player's move and optionally respond with an AI move."""
 
         game = self.get_game(identifier)
@@ -79,7 +85,7 @@ class GameManager:
             ai_move = self._trigger_ai_turn(game)
         return player_move, ai_move
 
-    def _trigger_ai_turn(self, game: Game) -> Optional[Move]:
+    def _trigger_ai_turn(self, game: Game) -> Move | None:
         board = game.board
         if board.status is not GameStatus.ONGOING:
             return None
@@ -96,7 +102,7 @@ class GameManager:
         return move
 
     def _build_move(
-        self, board: ChessBoard, from_square: str, to_square: str, promotion: Optional[str]
+        self, board: ChessBoard, from_square: str, to_square: str, promotion: str | None
     ) -> Move:
         start = algebraic_to_index(from_square)
         end = algebraic_to_index(to_square)
@@ -109,10 +115,22 @@ class GameManager:
             dest_row, _ = end
             if dest_row in (0, 7):
                 promotion_type = PieceType.QUEEN
-        return Move(start=start, end=end, promotion=promotion_type)
+        is_castling = (
+            piece.kind is PieceType.KING and start[0] == end[0] and abs(start[1] - end[1]) == 2
+        )
+        is_en_passant = piece.kind is PieceType.PAWN and self._is_en_passant_capture(
+            board, start, end
+        )
+        return Move(
+            start=start,
+            end=end,
+            promotion=promotion_type,
+            is_castling=is_castling,
+            is_en_passant=is_en_passant,
+        )
 
     @staticmethod
-    def _promotion_from_string(value: Optional[str]) -> Optional[PieceType]:
+    def _promotion_from_string(value: str | None) -> PieceType | None:
         if value is None:
             return None
         normalized = value.lower()
@@ -122,7 +140,24 @@ class GameManager:
             msg = f"Unsupported promotion piece: {value}"
             raise ValueError(msg) from exc
 
-    def serialize_move(self, move: Optional[Move]) -> Optional[dict[str, str]]:
+    @staticmethod
+    def _is_en_passant_capture(board: ChessBoard, start: BoardIndex, end: BoardIndex) -> bool:
+        if board.en_passant_target is None or end != board.en_passant_target:
+            return False
+        if start[1] == end[1]:
+            return False
+        if board.get_piece(end) is not None:
+            return False
+        capture_square = (start[0], end[1])
+        captured = board.get_piece(capture_square)
+        if captured is None or captured.kind is not PieceType.PAWN:
+            return False
+        mover = board.get_piece(start)
+        if mover is None:
+            return False
+        return captured.color is mover.color.opponent
+
+    def serialize_move(self, move: Move | None) -> dict[str, str] | None:
         """Serialize a move for transport."""
 
         if move is None:

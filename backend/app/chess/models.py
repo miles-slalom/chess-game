@@ -1,14 +1,14 @@
 """Core chess domain models and helper utilities."""
+
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable, List, Optional, Sequence, Tuple
-
 
 BOARD_FILES = "abcdefgh"
 BOARD_RANKS = "12345678"
-BoardIndex = Tuple[int, int]
+BoardIndex = tuple[int, int]
 
 
 class PieceColor(str, Enum):
@@ -18,7 +18,7 @@ class PieceColor(str, Enum):
     BLACK = "black"
 
     @property
-    def opponent(self) -> "PieceColor":
+    def opponent(self) -> PieceColor:
         """Return the opposing color."""
 
         return PieceColor.BLACK if self is PieceColor.WHITE else PieceColor.WHITE
@@ -49,9 +49,11 @@ class Move:
 
     start: BoardIndex
     end: BoardIndex
-    promotion: Optional[PieceType] = None
+    promotion: PieceType | None = None
+    is_castling: bool = False
+    is_en_passant: bool = False
 
-    def to_algebraic(self) -> Tuple[str, str]:
+    def to_algebraic(self) -> tuple[str, str]:
         """Return the move as algebraic square strings."""
 
         return index_to_algebraic(self.start), index_to_algebraic(self.end)
@@ -83,8 +85,9 @@ def index_to_algebraic(index: BoardIndex) -> str:
     return f"{file_char}{rank_char}"
 
 
-def iter_directions(directions: Sequence[Tuple[int, int]],
-                    start: BoardIndex) -> Iterable[BoardIndex]:
+def iter_directions(
+    directions: Sequence[tuple[int, int]], start: BoardIndex
+) -> Iterable[BoardIndex]:
     """Yield successive squares along provided directions until out of bounds."""
 
     for delta_row, delta_col in directions:
@@ -98,14 +101,14 @@ def iter_directions(directions: Sequence[Tuple[int, int]],
             yield candidate
 
 
-ORTHOGONAL_DIRECTIONS: List[Tuple[int, int]] = [
+ORTHOGONAL_DIRECTIONS: list[tuple[int, int]] = [
     (-1, 0),
     (1, 0),
     (0, -1),
     (0, 1),
 ]
 
-DIAGONAL_DIRECTIONS: List[Tuple[int, int]] = [
+DIAGONAL_DIRECTIONS: list[tuple[int, int]] = [
     (-1, -1),
     (-1, 1),
     (1, -1),

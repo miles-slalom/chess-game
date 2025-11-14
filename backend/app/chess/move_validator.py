@@ -1,7 +1,8 @@
 """Move generation and validation utilities."""
+
 from __future__ import annotations
 
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 from .board import ChessBoard, GameStatus
 from .models import (
@@ -40,14 +41,14 @@ class MoveGenerator:
     ]
 
     @classmethod
-    def valid_moves_for_square(cls, board: ChessBoard, origin: BoardIndex) -> List[Move]:
+    def valid_moves_for_square(cls, board: ChessBoard, origin: BoardIndex) -> list[Move]:
         """Return all legal moves originating from the given square."""
 
         piece = board.get_piece(origin)
         if piece is None or piece.color is not board.current_turn:
             return []
         raw_moves = list(cls._candidate_moves(board, origin, piece))
-        legal_moves: List[Move] = []
+        legal_moves: list[Move] = []
         for move in raw_moves:
             if cls._keeps_king_safe(board, move, piece.color):
                 legal_moves.append(move)
@@ -112,6 +113,7 @@ class MoveGenerator:
             yield from cls._sliding_moves(board, origin, piece, orthogonal=True, diagonal=True)
         elif piece.kind is PieceType.KING:
             yield from cls._step_moves(board, origin, piece, cls.KING_DELTAS)
+            yield from cls._castling_moves(board, origin, piece)
 
     @classmethod
     def _pawn_moves(cls, board: ChessBoard, origin: BoardIndex, piece: Piece) -> Iterable[Move]:
@@ -131,6 +133,16 @@ class MoveGenerator:
             target = board.get_piece(capture_square)
             if target and target.color is not piece.color:
                 yield cls._maybe_promote(Move(origin, capture_square), piece, capture_square)
+                continue
+            adjacent = board.get_piece((row, col + delta_col))
+            if (
+                board.en_passant_target
+                and board.en_passant_target == capture_square
+                and adjacent
+                and adjacent.color is not piece.color
+                and adjacent.kind is PieceType.PAWN
+            ):
+                yield Move(origin, capture_square, is_en_passant=True)
 
     @classmethod
     def _maybe_promote(cls, move: Move, piece: Piece, destination: BoardIndex) -> Move:
@@ -167,7 +179,7 @@ class MoveGenerator:
         orthogonal: bool = False,
         diagonal: bool = False,
     ) -> Iterable[Move]:
-        directions: List[tuple[int, int]] = []
+        directions: list[tuple[int, int]] = []
         if orthogonal:
             directions.extend([(-1, 0), (1, 0), (0, -1), (0, 1)])
         if diagonal:
@@ -189,13 +201,56 @@ class MoveGenerator:
                 break
 
     @classmethod
+    def _castling_moves(cls, board: ChessBoard, origin: BoardIndex, piece: Piece) -> Iterable[Move]:
+        rights = board.castling_rights.get(piece.color)
+        if not rights:
+            return
+        row = 7 if piece.color is PieceColor.WHITE else 0
+        if origin != (row, 4):
+            return
+        if cls.is_in_check(board, piece.color):
+            return
+        opponent = piece.color.opponent
+
+        def path_clear(squares: Iterable[BoardIndex]) -> bool:
+            return all(board.get_piece(square) is None for square in squares)
+
+        def safe_squares(squares: Iterable[BoardIndex]) -> bool:
+            return all(not cls.is_square_attacked(board, square, opponent) for square in squares)
+
+        if rights.get("kingside"):
+            rook_square = (row, 7)
+            between = [(row, 5), (row, 6)]
+            rook = board.get_piece(rook_square)
+            if (
+                rook
+                and rook.kind is PieceType.ROOK
+                and rook.color is piece.color
+                and path_clear(between)
+                and safe_squares(between)
+            ):
+                yield Move(origin, (row, 6), is_castling=True)
+        if rights.get("queenside"):
+            rook_square = (row, 0)
+            between = [(row, 1), (row, 2), (row, 3)]
+            king_path = [(row, 3), (row, 2)]
+            rook = board.get_piece(rook_square)
+            if (
+                rook
+                and rook.kind is PieceType.ROOK
+                and rook.color is piece.color
+                and path_clear(between)
+                and safe_squares(king_path)
+            ):
+                yield Move(origin, (row, 2), is_castling=True)
+
+    @classmethod
     def _keeps_king_safe(cls, board: ChessBoard, move: Move, color: PieceColor) -> bool:
         clone = board.clone()
-        moving_piece = clone.get_piece(move.start)
-        if moving_piece is None:
+        try:
+            clone.apply_move(move)
+        except ValueError:
             return False
-        clone.set_piece(move.end, moving_piece if move.promotion is None else Piece(moving_piece.color, move.promotion))
-        clone.set_piece(move.start, None)
         king_position = clone.find_king(color)
         if king_position is None:
             return False
@@ -224,11 +279,19 @@ class MoveGenerator:
                 return True
         # Sliding pieces
         if cls._attacks_from_directions(
-            board, square, attacker, [(-1, 0), (1, 0), (0, -1), (0, 1)], {PieceType.ROOK, PieceType.QUEEN}
+            board,
+            square,
+            attacker,
+            [(-1, 0), (1, 0), (0, -1), (0, 1)],
+            {PieceType.ROOK, PieceType.QUEEN},
         ):
             return True
         if cls._attacks_from_directions(
-            board, square, attacker, [(-1, -1), (-1, 1), (1, -1), (1, 1)], {PieceType.BISHOP, PieceType.QUEEN}
+            board,
+            square,
+            attacker,
+            [(-1, -1), (-1, 1), (1, -1), (1, 1)],
+            {PieceType.BISHOP, PieceType.QUEEN},
         ):
             return True
         # Kings

@@ -1,4 +1,5 @@
 """Unit tests for chess logic and game manager orchestration."""
+
 from backend.app.chess.board import ChessBoard
 from backend.app.chess.models import Piece, PieceColor, PieceType, algebraic_to_index
 from backend.app.chess.move_validator import MoveGenerator
@@ -17,6 +18,8 @@ def test_pawn_promotion_moves_include_queen():
     board = ChessBoard()
     board.grid = [[None for _ in range(8)] for _ in range(8)]
     board.current_turn = PieceColor.WHITE
+    board.set_piece((7, 4), Piece(PieceColor.WHITE, PieceType.KING))
+    board.set_piece((0, 4), Piece(PieceColor.BLACK, PieceType.KING))
     origin = (1, 0)
     board.set_piece(origin, Piece(PieceColor.WHITE, PieceType.PAWN))
     moves = MoveGenerator.valid_moves_for_square(board, origin)
@@ -58,3 +61,44 @@ def test_update_game_status_detects_stalemate():
     MoveGenerator.update_game_status(board)
     assert board.status.name.lower() == "stalemate"
     assert board.winner is None
+
+
+def test_en_passant_execution_removes_captured_pawn():
+    board = ChessBoard()
+    board.grid = [[None for _ in range(8)] for _ in range(8)]
+    board.current_turn = PieceColor.WHITE
+    board.set_piece((7, 4), Piece(PieceColor.WHITE, PieceType.KING))
+    board.set_piece((0, 4), Piece(PieceColor.BLACK, PieceType.KING))
+    white_origin = (3, 4)
+    board.set_piece(white_origin, Piece(PieceColor.WHITE, PieceType.PAWN))
+    board.set_piece((3, 3), Piece(PieceColor.BLACK, PieceType.PAWN))
+    board.en_passant_target = (2, 3)
+    moves = MoveGenerator.valid_moves_for_square(board, white_origin)
+    en_passant_moves = [move for move in moves if move.is_en_passant]
+    assert en_passant_moves
+    board.apply_move(en_passant_moves[0])
+    assert board.get_piece((3, 3)) is None
+    destination_piece = board.get_piece((2, 3))
+    assert destination_piece and destination_piece.color is PieceColor.WHITE
+
+
+def test_castling_moves_king_and_rook():
+    board = ChessBoard()
+    board.grid = [[None for _ in range(8)] for _ in range(8)]
+    board.current_turn = PieceColor.WHITE
+    board.set_piece((0, 4), Piece(PieceColor.BLACK, PieceType.KING))
+    board.castling_rights = {
+        PieceColor.WHITE: {"kingside": True, "queenside": True},
+        PieceColor.BLACK: {"kingside": False, "queenside": False},
+    }
+    board.set_piece((7, 4), Piece(PieceColor.WHITE, PieceType.KING))
+    board.set_piece((7, 7), Piece(PieceColor.WHITE, PieceType.ROOK))
+    moves = MoveGenerator.valid_moves_for_square(board, (7, 4))
+    castle_moves = [move for move in moves if move.is_castling and move.end == (7, 6)]
+    assert castle_moves
+    board.apply_move(castle_moves[0])
+    king_dest = board.get_piece((7, 6))
+    rook_dest = board.get_piece((7, 5))
+    assert king_dest and king_dest.kind is PieceType.KING
+    assert rook_dest and rook_dest.kind is PieceType.ROOK
+    assert not board.castling_rights[PieceColor.WHITE]["kingside"]

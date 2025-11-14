@@ -1,13 +1,12 @@
 """Chess AI strategies."""
+
 from __future__ import annotations
 
 import random
-from typing import List, Optional
 
 from .board import ChessBoard
 from .models import Move, PieceColor, PieceType
 from .move_validator import MoveGenerator
-
 
 PIECE_VALUES: dict[PieceType, int] = {
     PieceType.PAWN: 1,
@@ -19,7 +18,7 @@ PIECE_VALUES: dict[PieceType, int] = {
 }
 
 
-def _collect_legal_moves(board: ChessBoard, color: PieceColor) -> List[Move]:
+def _collect_legal_moves(board: ChessBoard, color: PieceColor) -> list[Move]:
     legal_moves: list[Move] = []
     current_turn = board.current_turn
     board.current_turn = color
@@ -36,7 +35,7 @@ def _collect_legal_moves(board: ChessBoard, color: PieceColor) -> List[Move]:
 class RandomMoveAI:
     """Baseline AI that randomly picks from the available legal moves."""
 
-    def choose_move(self, board: ChessBoard, color: PieceColor) -> Optional[Move]:
+    def choose_move(self, board: ChessBoard, color: PieceColor) -> Move | None:
         """Return a random legal move for the provided color."""
 
         legal_moves = _collect_legal_moves(board, color)
@@ -48,7 +47,7 @@ class RandomMoveAI:
 class GreedyMoveAI:
     """AI that prioritizes moves with the highest material gain."""
 
-    def choose_move(self, board: ChessBoard, color: PieceColor) -> Optional[Move]:
+    def choose_move(self, board: ChessBoard, color: PieceColor) -> Move | None:
         """Return the move that captures the most valuable material."""
 
         legal_moves = _collect_legal_moves(board, color)
@@ -67,6 +66,8 @@ class GreedyMoveAI:
 
     def _material_gain(self, board: ChessBoard, move: Move) -> int:
         target = board.get_piece(move.end)
+        if move.is_en_passant:
+            target = board.get_piece((move.start[0], move.end[1]))
         capture_value = PIECE_VALUES[target.kind] if target else 0
         promotion_value = 0
         if move.promotion:

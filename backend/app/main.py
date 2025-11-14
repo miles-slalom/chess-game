@@ -1,4 +1,5 @@
 """FastAPI entry point for the chess web application."""
+
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
@@ -69,9 +70,12 @@ async def make_move(game_id: str, payload: MoveRequest) -> MoveResponse:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     state = to_game_state_schema(game.identifier, game.to_board_state())
+    serialized_player_move = game_manager.serialize_move(player_move)
+    if serialized_player_move is None:  # pragma: no cover - defensive guard
+        raise HTTPException(status_code=500, detail="Unable to serialize player move")
     return MoveResponse(
         state=state,
-        player_move=game_manager.serialize_move(player_move),
+        player_move=serialized_player_move,
         ai_move=game_manager.serialize_move(ai_move),
     )
 

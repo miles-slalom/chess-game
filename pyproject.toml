@@ -5,7 +5,7 @@ description = "Web-based chess game with FastAPI backend and lightweight fronten
 authors = [{ name = "Cursor User" }]
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "MIT" }
+license = "MIT"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
@@ -35,7 +35,6 @@ select = [
     "F",
     "N",
     "I",
-    "UP",
     "B",
 ]
 ignore = []
@@ -45,7 +44,6 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.mypy]
-persist_error_codes = true
 python_version = "3.12"
 disallow_untyped_defs = true
 warn_unused_ignores = true
@@ -56,3 +54,7 @@ strict = true
 [build-system]
 requires = ["setuptools>=69.0.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+exclude = ["tests*", "frontend*"]

@@ -1,7 +1,6 @@
 """Pydantic schemas for API contracts."""
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
@@ -13,8 +12,8 @@ class PieceSchema(BaseModel):
     """Serialized representation of a board square."""
 
     square: str
-    piece: Optional[str] = Field(default=None)
-    color: Optional[str] = Field(default=None)
+    piece: str | None = Field(default=None)
+    color: str | None = Field(default=None)
 
 
 class GameStateSchema(BaseModel):
@@ -24,7 +23,9 @@ class GameStateSchema(BaseModel):
     squares: list[PieceSchema]
     current_turn: PieceColor
     status: GameStatus
-    winner: Optional[PieceColor]
+    winner: PieceColor | None
+    castling_rights: dict[str, dict[str, bool]]
+    en_passant_target: str | None
 
 
 class CreateGameResponse(BaseModel):
@@ -39,7 +40,7 @@ class MoveRequest(BaseModel):
 
     from_square: str = Field(..., description="Algebraic square, e.g., e2")
     to_square: str = Field(..., description="Algebraic destination square")
-    promotion: Optional[str] = Field(default=None, description="Optional promotion piece")
+    promotion: str | None = Field(default=None, description="Optional promotion piece")
 
 
 class MoveResponse(BaseModel):
@@ -47,7 +48,7 @@ class MoveResponse(BaseModel):
 
     state: GameStateSchema
     player_move: dict[str, str]
-    ai_move: Optional[dict[str, str]]
+    ai_move: dict[str, str] | None
 
 
 class MovesResponse(BaseModel):
@@ -65,4 +66,6 @@ def to_game_state_schema(game_id: str, board_state: BoardState) -> GameStateSche
         current_turn=board_state.current_turn,
         status=board_state.status,
         winner=board_state.winner,
+        castling_rights=board_state.castling_rights,
+        en_passant_target=board_state.en_passant_target,
     )

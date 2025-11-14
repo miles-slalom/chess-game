@@ -177,6 +177,24 @@ async function submitMove(fromSquare, toSquare) {
     }
   } catch (error) {
     updateStatus("Error", error.message);
+    await refreshState();
+  }
+}
+
+async function refreshState() {
+  if (!state.gameId) {
+    return;
+  }
+  try {
+    const response = await fetch(`${API_BASE}/games/${state.gameId}`);
+    if (!response.ok) {
+      throw new Error("Unable to refresh state");
+    }
+    const data = await response.json();
+    state.gameId = data.game_id ?? state.gameId;
+    syncState(data);
+  } catch (error) {
+    console.error("Failed to refresh board state", error);
   }
 }
 
