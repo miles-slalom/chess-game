@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
-from ..chess.ai import RandomMoveAI
+from ..chess.ai import GreedyMoveAI
 from ..chess.board import BoardState, ChessBoard, GameStatus
 from ..chess.models import Move, PieceColor, PieceType, algebraic_to_index, index_to_algebraic
 from ..chess.move_validator import MoveGenerator
@@ -31,7 +31,7 @@ class GameManager:
 
     def __init__(self) -> None:
         self._games: Dict[str, Game] = {}
-        self._ai = RandomMoveAI()
+        self._ai = GreedyMoveAI()
 
     def create_game(self, player_color: PieceColor = PieceColor.WHITE) -> Game:
         """Create and register a new game."""
