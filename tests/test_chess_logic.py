@@ -34,3 +34,27 @@ def test_game_manager_handles_player_and_ai_turns():
     assert updated_game.board.move_history
     if ai_move is not None:
         assert ai_move in updated_game.board.move_history
+
+
+def test_update_game_status_detects_checkmate():
+    board = ChessBoard()
+    board.grid = [[None for _ in range(8)] for _ in range(8)]
+    board.set_piece(algebraic_to_index("h8"), Piece(PieceColor.BLACK, PieceType.KING))
+    board.set_piece(algebraic_to_index("g7"), Piece(PieceColor.WHITE, PieceType.QUEEN))
+    board.set_piece(algebraic_to_index("f6"), Piece(PieceColor.WHITE, PieceType.KING))
+    board.current_turn = PieceColor.BLACK
+    MoveGenerator.update_game_status(board)
+    assert board.status.name.lower() == "checkmate"
+    assert board.winner is PieceColor.WHITE
+
+
+def test_update_game_status_detects_stalemate():
+    board = ChessBoard()
+    board.grid = [[None for _ in range(8)] for _ in range(8)]
+    board.set_piece(algebraic_to_index("h8"), Piece(PieceColor.BLACK, PieceType.KING))
+    board.set_piece(algebraic_to_index("f7"), Piece(PieceColor.WHITE, PieceType.KING))
+    board.set_piece(algebraic_to_index("g6"), Piece(PieceColor.WHITE, PieceType.QUEEN))
+    board.current_turn = PieceColor.BLACK
+    MoveGenerator.update_game_status(board)
+    assert board.status.name.lower() == "stalemate"
+    assert board.winner is None
