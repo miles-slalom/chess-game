@@ -80,9 +80,6 @@ async def make_move(game_id: str, payload: MoveRequest) -> MoveResponse:
     )
 
 
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
-
-
 @app.get("/api/games/{game_id}/moves/{square}", response_model=MovesResponse)
 async def list_moves(game_id: str, square: str) -> MovesResponse:
     """Return all valid moves for a given square."""
@@ -93,3 +90,6 @@ async def list_moves(game_id: str, square: str) -> MovesResponse:
         raise HTTPException(status_code=404, detail="Game not found") from exc
     serialized = game_manager.serialize_moves(moves)
     return MovesResponse(moves=serialized)
+
+
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
