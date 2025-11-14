@@ -25,9 +25,9 @@ boardEl.addEventListener("click", handleSquareClick);
 
 startNewGame();
 
-async function startNewGame() {
+async function startNewGame(statusDetail = "Waiting for response…") {
   clearLog();
-  updateStatus("Starting new game…", "Waiting for response…");
+  updateStatus("Starting new game…", statusDetail);
   try {
     const response = await fetch(`${API_BASE}/games`, { method: "POST" });
     const payload = await response.json();
@@ -146,8 +146,13 @@ async function selectSquare(squareId) {
     const response = await fetch(
       `${API_BASE}/games/${state.gameId}/moves/${squareId}`
     );
-    if (!response.ok) {
+    if (response.status === 404) {
+      console.warn("Game session not found, starting a new game.");
+      await handleExpiredGame();
       return;
+    }
+    if (!response.ok) {
+      throw new Error("Unable to fetch moves");
     }
     const data = await response.json();
     state.validTargets = new Set(data.moves.map((move) => move.to));
@@ -165,6 +170,11 @@ async function submitMove(fromSquare, toSquare) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ from_square: fromSquare, to_square: toSquare }),
     });
+    if (response.status === 404) {
+      console.warn("Move rejected because session expired. Starting a new game.");
+      await handleExpiredGame();
+      return;
+    }
     if (!response.ok) {
       const errorPayload = await response.json();
       throw new Error(errorPayload.detail || "Move rejected");
@@ -187,6 +197,11 @@ async function refreshState() {
   }
   try {
     const response = await fetch(`${API_BASE}/games/${state.gameId}`);
+    if (response.status === 404) {
+      console.warn("Unable to refresh state; session expired.");
+      await handleExpiredGame();
+      return;
+    }
     if (!response.ok) {
       throw new Error("Unable to refresh state");
     }
@@ -223,4 +238,8 @@ function formatGameStatus() {
     return "Draw (stalemate)";
   }
   return "Game in progress";
+}
+
+async function handleExpiredGame() {
+  await startNewGame("Session expired. Creating a new game…");
 }

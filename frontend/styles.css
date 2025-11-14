@@ -97,6 +97,17 @@ h1 {
 .square .piece {
   pointer-events: none;
   font-weight: 700;
+  text-transform: uppercase;
+}
+
+.piece-white {
+  color: #ffffff;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+}
+
+.piece-black {
+  color: #111111;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
 }
 
 #status-bar {
